@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>My Habit Tracker</title>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="default"/>
+<meta name="apple-mobile-web-app-title" content="Habits"/>
+<meta name="theme-color" content="#7F77DD"/>
+<link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%237F77DD'/><text y='.9em' x='50' font-size='58' text-anchor='middle'>✅</text></svg>"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap');
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Inter',sans-serif;background:#f7f7f5;color:#1a1a1a;padding:20px 16px 40px;max-width:680px;margin:0 auto;min-height:100vh}
+  
+  /* Header */
+  .header{margin-bottom:24px}
+  .header h1{font-size:28px;font-weight:600;letter-spacing:-0.5px;color:#1a1a1a}
+  .header .date{font-size:13px;color:#999;margin-top:2px;font-weight:400}
+  
+  /* Metric cards */
+  .metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:24px}
+  .metric{background:#fff;border:1px solid #ebebeb;border-radius:14px;padding:14px 12px;position:relative;overflow:hidden}
+  .metric::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,#7F77DD,#a89ff0)}
+  .metric .label{font-size:10px;color:#aaa;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:6px;font-weight:500}
+  .metric .val{font-size:24px;font-weight:600;color:#1a1a1a;letter-spacing:-0.5px}
+  .metric .sub{font-size:10px;color:#bbb;margin-top:2px}
+
+  /* Tabs */
+  .tabs{display:flex;gap:6px;margin-bottom:20px;align-items:center}
+  .tab{padding:7px 16px;border-radius:20px;font-size:13px;border:1.5px solid #e0e0e0;background:#fff;color:#888;font-weight:500;transition:all 0.15s;font-family:'Inter',sans-serif}
+  .tab.active{border-color:#7F77DD;background:#7F77DD;color:#fff}
+  .add-btn{margin-left:auto;padding:7px 16px;border-radius:20px;font-size:13px;border:1.5px solid #7F77DD;background:transparent;color:#7F77DD;font-weight:500;font-family:'Inter',sans-serif;cursor:pointer;transition:all 0.15s}
+  .add-btn:active{background:#7F77DD;color:#fff}
+
+  /* Month header */
+  .month-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+  .month-title{font-size:15px;font-weight:600;color:#1a1a1a}
+  .month-progress{font-size:12px;color:#aaa}
+
+  /* Habit card */
+  .card{background:#fff;border:1px solid #ebebeb;border-radius:16px;padding:16px;margin-bottom:12px;transition:box-shadow 0.15s}
+  .card:active{box-shadow:0 2px 12px rgba(127,119,221,0.1)}
+
+  .habit-row{display:flex;align-items:center;gap:10px}
+  .check-btn{width:28px;height:28px;border-radius:50%;border:2px solid #ddd;background:transparent;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all 0.2s;cursor:pointer}
+  .habit-name{font-weight:500;font-size:15px;color:#1a1a1a;flex:1;transition:all 0.15s}
+  .habit-name.done{text-decoration:line-through;color:#ccc}
+  .habit-meta{font-size:11px;color:#bbb;margin-top:2px}
+  .icon-btn{background:transparent;border:none;padding:3px 5px;font-size:14px;color:#ccc;cursor:pointer;font-family:'Inter',sans-serif}
+
+  /* Calendar grid */
+  .cal-wrap{margin-top:14px;padding-top:12px;border-top:1px solid #f0f0f0}
+  .cal-label{font-size:10px;color:#bbb;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px;font-weight:500}
+  .weekdays{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-bottom:3px}
+  .wd{font-size:9px;color:#ccc;text-align:center;font-weight:500}
+  .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
+  .cal-day{aspect-ratio:1;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:500;cursor:pointer;transition:all 0.15s;border:1px solid transparent;position:relative}
+  .cal-day.empty{background:transparent;cursor:default}
+  .cal-day.future{background:#f7f7f5;color:#ddd;cursor:default}
+  .cal-day.missed{background:#f5f5f5;color:#ccc;border-color:#ebebeb}
+  .cal-day.done-day{color:#fff}
+  .cal-day.today-ring{border-width:2px}
+  .cal-day.today-ring.missed{border-color:#7F77DD;color:#7F77DD;background:#f5f4ff}
+
+  /* Streak badge */
+  .streak-badge{display:inline-flex;align-items:center;gap:3px;background:#fff8f0;border:1px solid #ffe0b2;border-radius:20px;padding:2px 8px;font-size:11px;color:#e67e22;font-weight:500}
+
+  /* Notes section */
+  .notes-wrap{margin-top:12px;padding-top:10px;border-top:1px solid #f0f0f0}
+  .notes-label{font-size:10px;color:#bbb;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:6px;font-weight:500}
+  textarea{width:100%;padding:8px 10px;border:1px solid #ebebeb;border-radius:10px;font-size:13px;font-family:'Inter',sans-serif;background:#fafafa;color:#1a1a1a;outline:none;resize:none;line-height:1.5}
+  textarea:focus{border-color:#7F77DD;background:#fff}
+  .save-note-btn{margin-top:6px;padding:5px 14px;font-size:12px;border:1.5px solid #7F77DD;border-radius:8px;background:transparent;color:#7F77DD;font-weight:500;cursor:pointer;font-family:'Inter',sans-serif}
+
+  /* Category dot */
+  .cat-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+
+  /* Category section */
+  .cat-section{margin-bottom:20px}
+  .cat-title{display:flex;align-items:center;gap:6px;margin-bottom:10px}
+  .cat-name{font-size:10px;font-weight:600;color:#bbb;text-transform:uppercase;letter-spacing:0.07em}
+
+  /* Modal */
+  .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,0.3);backdrop-filter:blur(4px);display:flex;align-items:flex-end;justify-content:center;z-index:999;padding:0}
+  .modal{background:#fff;border-radius:24px 24px 0 0;padding:24px 20px 36px;width:100%;max-width:480px}
+  .modal-title{font-size:17px;font-weight:600;margin-bottom:20px;color:#1a1a1a}
+  .field-label{font-size:12px;color:#aaa;margin-bottom:5px;font-weight:500}
+  input,select{width:100%;padding:10px 12px;border:1.5px solid #ebebeb;border-radius:10px;font-size:14px;font-family:'Inter',sans-serif;background:#fafafa;color:#1a1a1a;outline:none;margin-bottom:14px}
+  input:focus,select:focus{border-color:#7F77DD;background:#fff}
+  .modal-btns{display:flex;gap:10px;margin-top:4px}
+  .btn-cancel{flex:1;padding:12px;border:1.5px solid #ebebeb;border-radius:12px;background:#fff;color:#999;font-size:14px;font-weight:500;cursor:pointer;font-family:'Inter',sans-serif}
+  .btn-save{flex:2;padding:12px;border:none;border-radius:12px;background:#7F77DD;color:#fff;font-size:14px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif}
+
+  /* Install banner */
+  .install-banner{background:linear-gradient(135deg,#7F77DD,#a89ff0);color:#fff;border-radius:14px;padding:14px 16px;margin-bottom:20px;display:flex;align-items:center;justify-content:space-between;gap:10px}
+  .install-banner p{font-size:13px;font-weight:500}
+  .install-banner span{font-size:11px;opacity:0.8;display:block;margin-top:1px}
+  .install-btn{background:#fff;color:#7F77DD;border:none;border-radius:8px;padding:8px 14px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;font-family:'Inter',sans-serif}
+  .close-banner{background:transparent;border:none;color:rgba(255,255,255,0.6);font-size:20px;cursor:pointer;padding:0;line-height:1}
+
+  /* Empty state */
+  .empty{text-align:center;padding:40px 20px;color:#ccc}
+  .empty-icon{font-size:40px;margin-bottom:10px}
+  .empty p{font-size:14px}
+
+  /* Progress view recent notes */
+  .recent-note{font-size:12px;color:#888;margin-bottom:4px;line-height:1.5}
+  .recent-note .note-date{color:#ccc;font-size:11px}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const {useState,useEffect,useRef} = React;
+
+const CATS = ["Health","Work","Personal","Learning","Fitness","Mindfulness"];
+const CAT_COLOR = {Health:"#34C97A",Work:"#378ADD",Personal:"#D4537E",Learning:"#F0A500",Fitness:"#FF6B35",Mindfulness:"#7F77DD"};
+const WEEKDAYS = ["Su","Mo","Tu","We","Th","Fr","Sa"];
+
+const todayStr = () => new Date().toISOString().slice(0,10);
+
+function getDaysInMonth(year, month) {
+  return new Date(year, month+1, 0).getDate();
+}
+function getFirstDayOfMonth(year, month) {
+  return new Date(year, month, 1).getDay();
+}
+function padded(n){ return String(n).padStart(2,'0'); }
+
+const DEFAULT = [
+  {id:1,name:"Morning Run 🏃",category:"Fitness",color:"#FF6B35",reminder:"07:00",completions:{},notes:{}},
+  {id:2,name:"Read Books 📚",category:"Learning",color:"#F0A500",reminder:"21:00",completions:{},notes:{}},
+  {id:3,name:"Meditate 🧘",category:"Mindfulness",color:"#7F77DD",reminder:"08:00",completions:{},notes:{}},
+];
+
+function load(){ try{ const s=localStorage.getItem("ht3"); return s?JSON.parse(s):DEFAULT; }catch{ return DEFAULT; } }
+function save(h){ try{ localStorage.setItem("ht3",JSON.stringify(h)); }catch{} }
+
+function streakOf(c){
+  let s=0; const now=new Date(); now.setHours(0,0,0,0);
+  let d=new Date(now);
+  while(true){ const k=d.toISOString().slice(0,10); if(c[k]){s++;d=new Date(d-86400000);}else break; }
+  return s;
+}
+
+function monthDoneCount(c, year, month){
+  let count=0;
+  const days=getDaysInMonth(year,month);
+  for(let i=1;i<=days;i++){ const k=`${year}-${padded(month+1)}-${padded(i)}`; if(c[k])count++; }
+  return count;
+}
+
+function App(){
+  const [habits,setHabitsRaw]=useState(load);
+  const [view,setView]=useState("today");
+  const [modal,setModal]=useState(null);
+  const [expanded,setExpanded]=useState(null);
+  const [noteVals,setNoteVals]=useState({});
+  const [form,setForm]=useState({});
+  const [deferredPrompt,setDeferredPrompt]=useState(null);
+  const [showBanner,setShowBanner]=useState(false);
+
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth();
+  const today = now.getDate();
+  const t = todayStr();
+
+  const monthName = now.toLocaleDateString("en-IN",{month:"long",year:"numeric"});
+  const dateLabel = now.toLocaleDateString("en-IN",{weekday:"long",day:"numeric",month:"long"});
+  const daysInMonth = getDaysInMonth(year,month);
+  const firstDay = getFirstDayOfMonth(year,month);
+
+  useEffect(()=>{
+    const iconSvg=`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%237F77DD'/><text y='.85em' x='50' font-size='55' text-anchor='middle'>✅</text></svg>`;
+    const manifest={name:"My Habit Tracker",short_name:"Habits",start_url:".",display:"standalone",background_color:"#f7f7f5",theme_color:"#7F77DD",icons:[{src:`data:image/svg+xml,${iconSvg}`,sizes:"192x192",type:"image/svg+xml"},{src:`data:image/svg+xml,${iconSvg}`,sizes:"512x512",type:"image/svg+xml"}]};
+    const blob=new Blob([JSON.stringify(manifest)],{type:"application/manifest+json"});
+    const link=document.createElement("link"); link.rel="manifest"; link.href=URL.createObjectURL(blob); document.head.appendChild(link);
+    const handler=e=>{e.preventDefault();setDeferredPrompt(e);setShowBanner(true);};
+    window.addEventListener("beforeinstallprompt",handler);
+    return ()=>window.removeEventListener("beforeinstallprompt",handler);
+  },[]);
+
+  function setHabits(fn){ setHabitsRaw(h=>{ const next=typeof fn==="function"?fn(h):fn; save(next); return next; }); }
+  function toggle(id){ setHabits(hs=>hs.map(h=>h.id===id?{...h,completions:{...h.completions,[t]:!h.completions[t]}}:h)); }
+  function saveNote(id){ const v=noteVals[id]||""; setHabits(hs=>hs.map(h=>h.id===id?{...h,notes:{...h.notes,[t]:v}}:h)); }
+  function delHabit(id){ setHabits(hs=>hs.filter(h=>h.id!==id)); if(expanded===id)setExpanded(null); }
+  function openAdd(){ setForm({name:"",category:"Health",color:CAT_COLOR["Health"],reminder:"",id:null}); setModal("edit"); }
+  function openEdit(h){ setForm({...h}); setModal("edit"); }
+  function saveForm(){ if(!form.name.trim())return; if(form.id)setHabits(hs=>hs.map(h=>h.id===form.id?{...h,...form}:h)); else setHabits(hs=>[...hs,{...form,id:Date.now(),completions:{},notes:{}}]); setModal(null); }
+  function installApp(){ if(!deferredPrompt)return; deferredPrompt.prompt(); deferredPrompt.userChoice.then(()=>{ setDeferredPrompt(null); setShowBanner(false); }); }
+
+  const grouped=CATS.reduce((acc,c)=>{ const hs=habits.filter(h=>h.category===c); if(hs.length)acc[c]=hs; return acc; },{});
+  const doneToday=habits.filter(h=>h.completions[t]).length;
+  const bestStreak=habits.length?Math.max(...habits.map(h=>streakOf(h.completions))):0;
+  const monthDone=habits.reduce((a,h)=>a+monthDoneCount(h.completions,year,month),0);
+  const monthTotal=habits.length*daysInMonth;
+  const monthPct=monthTotal?Math.round(monthDone/monthTotal*100):0;
+
+  // Build calendar for a habit
+  function HabitCalendar({h}){
+    const cells=[];
+    for(let i=0;i<firstDay;i++) cells.push(<div key={`e${i}`} className="cal-day empty"/>);
+    for(let d=1;d<=daysInMonth;d++){
+      const k=`${year}-${padded(month+1)}-${padded(d)}`;
+      const isFuture=d>today;
+      const isDone=!!h.completions[k];
+      const isToday=d===today;
+      let cls="cal-day";
+      if(isFuture) cls+=" future";
+      else if(isDone) cls+=" done-day";
+      else cls+=" missed";
+      if(isToday) cls+=" today-ring";
+      return_cells: cells.push(
+        <div key={d} className={cls}
+          style={isDone?{background:h.color,borderColor:h.color}:isToday&&!isDone?{borderColor:h.color,color:h.color,background:`${h.color}15`}:{}}
+          onClick={()=>{ if(!isFuture){ const kk=`${year}-${padded(month+1)}-${padded(d)}`; setHabits(hs=>hs.map(hh=>hh.id===h.id?{...hh,completions:{...hh.completions,[kk]:!hh.completions[kk]}}:hh)); } }}
+        >{d}</div>
+      );
+    }
+    const done=monthDoneCount(h.completions,year,month);
+    const pct=Math.round(done/today*100);
+    return (
+      <div className="cal-wrap">
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
+          <span className="cal-label">{monthName}</span>
+          <span style={{fontSize:11,color:"#bbb"}}>{done}/{today} days · {pct}%</span>
+        </div>
+        <div className="weekdays">{WEEKDAYS.map(w=><div key={w} className="wd">{w}</div>)}</div>
+        <div className="cal-grid">{cells}</div>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      {showBanner&&(
+        <div className="install-banner">
+          <div><p>Add to Home Screen</p><span>Install as an app on your phone</span></div>
+          <div style={{display:"flex",gap:8,alignItems:"center"}}>
+            <button className="install-btn" onClick={installApp}>Install</button>
+            <button className="close-banner" onClick={()=>setShowBanner(false)}>×</button>
+          </div>
+        </div>
+      )}
+
+      <div className="header">
+        <h1>My habits</h1>
+        <div className="date">{dateLabel}</div>
+      </div>
+
+      <div className="metrics">
+        {[["Done today",`${doneToday}/${habits.length}`,"today"],["Best streak",`${bestStreak}d`,"all time"],["Month avg",`${monthPct}%`,monthName]].map(([l,v,s])=>(
+          <div className="metric" key={l}>
+            <div className="label">{l}</div>
+            <div className="val">{v}</div>
+            <div className="sub">{s}</div>
+          </div>
+        ))}
+      </div>
+
+      <div className="tabs">
+        <button className={`tab${view==="today"?" active":""}`} onClick={()=>setView("today")}>Today</button>
+        <button className={`tab${view==="progress"?" active":""}`} onClick={()=>setView("progress")}>Progress</button>
+        <button className="add-btn" onClick={openAdd}>+ Add habit</button>
+      </div>
+
+      {view==="today"&&(
+        <div>
+          {Object.entries(grouped).map(([cat,hs])=>(
+            <div key={cat} className="cat-section">
+              <div className="cat-title">
+                <span className="cat-dot" style={{background:CAT_COLOR[cat]}}/>
+                <span className="cat-name">{cat}</span>
+              </div>
+              {hs.map(h=>{
+                const done=!!h.completions[t];
+                const isOpen=expanded===h.id;
+                const streak=streakOf(h.completions);
+                return(
+                  <div className="card" key={h.id}>
+                    <div className="habit-row">
+                      <button className="check-btn" onClick={()=>toggle(h.id)}
+                        style={{borderColor:done?h.color:"#ddd",background:done?h.color:"transparent"}}>
+                        {done&&<svg width="12" height="12" viewBox="0 0 12 12" fill="none"><polyline points="2,6 5,9 10,3" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                      </button>
+                      <div style={{flex:1,minWidth:0}}>
+                        <div className={`habit-name${done?" done":""}`}>{h.name}</div>
+                        <div className="habit-meta">
+                          {streak>0&&<span className="streak-badge">🔥 {streak}d streak</span>}
+                          {h.reminder&&<span style={{marginLeft:streak>0?6:0}}>⏰ {h.reminder}</span>}
+                        </div>
+                      </div>
+                      <button className="icon-btn" onClick={()=>setExpanded(isOpen?null:h.id)}>{isOpen?"▲":"▼"}</button>
+                      <button className="icon-btn" onClick={()=>openEdit(h)}>✏️</button>
+                      <button className="icon-btn" onClick={()=>delHabit(h.id)}>🗑</button>
+                    </div>
+                    {isOpen&&(
+                      <div>
+                        <HabitCalendar h={h}/>
+                        <div className="notes-wrap">
+                          <div className="notes-label">Today's note</div>
+                          <textarea rows={2} placeholder="How did it go today?"
+                            defaultValue={h.notes[t]||""}
+                            onChange={e=>setNoteVals(n=>({...n,[h.id]:e.target.value}))}/>
+                          <button className="save-note-btn" onClick={()=>saveNote(h.id)}>Save note</button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          ))}
+          {habits.length===0&&(
+            <div className="empty">
+              <div className="empty-icon">🌱</div>
+              <p>No habits yet.<br/>Tap "+ Add habit" to start.</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {view==="progress"&&(
+        <div>
+          <div style={{marginBottom:16}}>
+            <div style={{fontSize:13,color:"#aaa",marginBottom:4}}>Overall this month</div>
+            <div style={{background:"#f0f0f0",borderRadius:20,height:6,overflow:"hidden"}}>
+              <div style={{height:"100%",width:`${monthPct}%`,background:"linear-gradient(90deg,#7F77DD,#a89ff0)",borderRadius:20,transition:"width 0.5s"}}/>
+            </div>
+            <div style={{fontSize:12,color:"#aaa",marginTop:4,textAlign:"right"}}>{monthPct}% complete</div>
+          </div>
+          {habits.map(h=>{
+            const done=monthDoneCount(h.completions,year,month);
+            const pct=Math.round(done/today*100);
+            const recentNotes=Object.entries(h.notes||{}).filter(([,v])=>v).slice(-3).reverse();
+            return(
+              <div className="card" key={h.id}>
+                <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12}}>
+                  <span className="cat-dot" style={{background:h.color}}/>
+                  <span style={{fontWeight:600,fontSize:14,flex:1}}>{h.name}</span>
+                  <span style={{fontSize:12,color:"#aaa"}}>{done}/{today}d · {pct}%</span>
+                </div>
+                {/* month progress bar */}
+                <div style={{background:"#f5f5f5",borderRadius:20,height:5,overflow:"hidden",marginBottom:12}}>
+                  <div style={{height:"100%",width:`${pct}%`,background:h.color,borderRadius:20,transition:"width 0.4s"}}/>
+                </div>
+                {/* Calendar grid */}
+                {(()=>{
+                  const cells=[];
+                  for(let i=0;i<firstDay;i++) cells.push(<div key={`e${i}`} className="cal-day empty"/>);
+                  for(let d=1;d<=daysInMonth;d++){
+                    const k=`${year}-${padded(month+1)}-${padded(d)}`;
+                    const isFuture=d>today;
+                    const isDone=!!h.completions[k];
+                    const isToday=d===today;
+                    let cls="cal-day";
+                    if(isFuture) cls+=" future";
+                    else if(isDone) cls+=" done-day";
+                    else cls+=" missed";
+                    if(isToday) cls+=" today-ring";
+                    cells.push(
+                      <div key={d} className={cls}
+                        style={isDone?{background:h.color,borderColor:h.color}:isToday&&!isDone?{borderColor:h.color,color:h.color,background:`${h.color}15`}:{}}
+                      >{d}</div>
+                    );
+                  }
+                  return(
+                    <div>
+                      <div className="weekdays">{WEEKDAYS.map(w=><div key={w} className="wd">{w}</div>)}</div>
+                      <div className="cal-grid">{cells}</div>
+                    </div>
+                  );
+                })()}
+                {recentNotes.length>0&&(
+                  <div style={{marginTop:12,paddingTop:10,borderTop:"1px solid #f0f0f0"}}>
+                    <div className="cal-label" style={{marginBottom:6}}>Recent notes</div>
+                    {recentNotes.map(([date,note])=>(
+                      <div key={date} className="recent-note">
+                        <span className="note-date">{date}: </span>{note}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+          {habits.length===0&&(
+            <div className="empty">
+              <div className="empty-icon">📊</div>
+              <p>No habits to track yet.</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {modal==="edit"&&(
+        <div className="modal-bg" onClick={e=>{if(e.target===e.currentTarget)setModal(null)}}>
+          <div className="modal">
+            <div className="modal-title">{form.id?"Edit habit ✏️":"New habit ✨"}</div>
+            <div className="field-label">Habit name</div>
+            <input value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))} placeholder="e.g. Morning yoga 🧘"/>
+            <div className="field-label">Category</div>
+            <select value={form.category} onChange={e=>setForm(f=>({...f,category:e.target.value,color:CAT_COLOR[e.target.value]}))}>
+              {CATS.map(c=><option key={c} value={c}>{c}</option>)}
+            </select>
+            <div className="field-label">Reminder time (optional)</div>
+            <input type="time" value={form.reminder} onChange={e=>setForm(f=>({...f,reminder:e.target.value}))}/>
+            <div className="modal-btns">
+              <button className="btn-cancel" onClick={()=>setModal(null)}>Cancel</button>
+              <button className="btn-save" onClick={saveForm}>Save habit</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+<script>
+if('serviceWorker' in navigator){
+  const sw=`self.addEventListener('install',e=>self.skipWaiting());self.addEventListener('activate',e=>e.waitUntil(clients.claim()));self.addEventListener('fetch',e=>e.respondWith(fetch(e.request).catch(()=>new Response('Offline'))));`;
+  navigator.serviceWorker.register(URL.createObjectURL(new Blob([sw],{type:'application/javascript'}))).catch(()=>{});
+}
+</script>
+</body>
+</html>
