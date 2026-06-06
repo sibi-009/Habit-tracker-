@@ -48,8 +48,6 @@ body{font-family:'Inter',sans-serif;color:#1a1a1a;min-height:100vh}
 textarea{width:100%;padding:7px 10px;border:1.5px solid #ebebeb;border-radius:10px;font-size:13px;font-family:'Inter',sans-serif;background:rgba(255,255,255,0.9);color:#1a1a1a;outline:none;resize:none}
 textarea:focus{border-color:#7F77DD}
 .snbtn{margin-top:4px;padding:4px 12px;font-size:12px;border:1.5px solid #7F77DD;border-radius:8px;background:transparent;color:#7F77DD;font-weight:500;cursor:pointer;font-family:'Inter',sans-serif}
-
-/* PROGRESS - compact fixed-size dots */
 .prog-card{border-radius:12px;padding:10px 12px;margin-bottom:8px}
 .prog-top{display:flex;align-items:center;gap:7px;margin-bottom:5px}
 .prog-name{font-weight:500;font-size:13px;flex:1}
@@ -57,18 +55,17 @@ textarea:focus{border-color:#7F77DD}
 .pbar-wrap{background:rgba(0,0,0,0.06);border-radius:20px;height:4px;overflow:hidden;margin-bottom:8px}
 .pbar{height:100%;border-radius:20px;transition:width 0.4s}
 
-/* Fixed size dot grid */
-.dot-grid-wrap{overflow-x:auto;padding-bottom:2px}
-.dot-grid{display:flex;flex-direction:column;gap:2px;width:fit-content}
-.dot-row{display:flex;gap:2px}
-.dot{width:14px;height:14px;border-radius:3px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:7px;font-weight:600;border:1px solid transparent}
-.dot.empty{background:transparent}
+/* DOT GRID - fixed 14px, no gaps from empty cells */
+.dot-grid{display:inline-grid;grid-template-columns:repeat(7,14px);gap:2px}
+.wd-grid{display:inline-grid;grid-template-columns:repeat(7,14px);gap:2px;margin-bottom:3px}
+.wd-lbl{width:14px;font-size:7px;color:#ccc;text-align:center;font-weight:500;line-height:14px}
+.dot{width:14px;height:14px;border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:7px;font-weight:600;border:1px solid transparent;cursor:default}
+.dot.clickable{cursor:pointer}
+.dot.empty{background:transparent;border:none}
 .dot.future{background:#f0f0f0;color:#ddd}
 .dot.missed{background:#f0f0f0;color:#ccc}
 .dot.done{color:#fff}
-.dot.today{border-width:2px}
-.wd-row{display:flex;gap:2px;width:fit-content}
-.wd-lbl{width:14px;font-size:7px;color:#ccc;text-align:center;font-weight:500}
+.dot.istoday{border-width:2px}
 
 .overall-wrap{border-radius:12px;padding:10px 12px;margin-bottom:12px}
 .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,0.3);backdrop-filter:blur(4px);display:flex;align-items:flex-end;justify-content:center;z-index:999}
@@ -84,7 +81,7 @@ input:focus,select:focus{border-color:#7F77DD;background:#fff}
 .inst-btn{background:#fff;color:#7F77DD;border:none;border-radius:8px;padding:7px 14px;font-size:12px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif}
 .close-b{background:transparent;border:none;color:rgba(255,255,255,0.6);font-size:20px;cursor:pointer;padding:0}
 .bg-btn{position:fixed;bottom:20px;right:16px;z-index:10;background:rgba(255,255,255,0.92);border:1.5px solid #e0e0e0;border-radius:50px;padding:8px 14px;font-size:12px;font-weight:500;color:#888;cursor:pointer;display:flex;align-items:center;gap:5px;font-family:'Inter',sans-serif;backdrop-filter:blur(10px);box-shadow:0 2px 12px rgba(0,0,0,0.1)}
-.empty{text-align:center;padding:40px 20px;color:#ccc}
+.empty-state{text-align:center;padding:40px 20px;color:#ccc}
 .empty-icon{font-size:36px;margin-bottom:8px}
 </style>
 </head>
@@ -108,54 +105,36 @@ const DEFAULT=[
   {id:2,name:"Read Books 📚",category:"Learning",color:"#F0A500",reminder:"21:00",completions:{},notes:{}},
   {id:3,name:"Meditate 🧘",category:"Mindfulness",color:"#7F77DD",reminder:"08:00",completions:{},notes:{}},
 ];
-function load(){try{const s=localStorage.getItem("ht6");return s?JSON.parse(s):DEFAULT;}catch{return DEFAULT;}}
-function save(h){try{localStorage.setItem("ht6",JSON.stringify(h));}catch{}}
-function loadBg(){try{return localStorage.getItem("ht6_bg")||"";}catch{return "";}}
-function saveBg(v){try{localStorage.setItem("ht6_bg",v);}catch{}}
+function load(){try{const s=localStorage.getItem("ht7");return s?JSON.parse(s):DEFAULT;}catch{return DEFAULT;}}
+function save(h){try{localStorage.setItem("ht7",JSON.stringify(h));}catch{}}
+function loadBg(){try{return localStorage.getItem("ht7_bg")||"";}catch{return "";}}
+function saveBg(v){try{localStorage.setItem("ht7_bg",v);}catch{}}
 function streakOf(c){let s=0;const now=new Date();now.setHours(0,0,0,0);let d=new Date(now);while(true){const k=d.toISOString().slice(0,10);if(c[k]){s++;d=new Date(d-86400000);}else break;}return s;}
 function mDone(c,y,m,upto){let n=0;for(let i=1;i<=upto;i++){if(c[`${y}-${pad(m+1)}-${pad(i)}`])n++;}return n;}
 
-// Compact dot grid — fixed 14px dots
 function DotGrid({h,daysInMonth,firstDay,year,month,today,clickable,onToggle}){
-  // Build rows of 7
-  const allCells=[];
-  for(let i=0;i<firstDay;i++) allCells.push({type:'empty'});
+  // Build a flat array of 7*rows cells — empty slots have no height issue in grid
+  const cells=[];
+  for(let i=0;i<firstDay;i++) cells.push(<div key={`e${i}`} className="dot empty"/>);
   for(let d=1;d<=daysInMonth;d++){
     const k=`${year}-${pad(month+1)}-${pad(d)}`;
     const isFuture=d>today,isDone=!!h.completions[k],isToday=d===today;
-    allCells.push({type:'day',d,k,isFuture,isDone,isToday});
+    let cls="dot"+(clickable&&!isFuture?" clickable":"");
+    if(isFuture) cls+=" future";
+    else if(isDone) cls+=" done";
+    else cls+=" missed";
+    if(isToday) cls+=" istoday";
+    cells.push(
+      <div key={d} className={cls}
+        style={isDone?{background:h.color,borderColor:h.color}:isToday&&!isDone?{borderColor:h.color,color:h.color,background:`${h.color}18`}:{}}
+        onClick={()=>clickable&&!isFuture&&onToggle&&onToggle(h.id,k)}
+      >{d}</div>
+    );
   }
-  // Pad to full rows
-  while(allCells.length%7!==0) allCells.push({type:'pad'});
-  const rows=[];
-  for(let i=0;i<allCells.length;i+=7) rows.push(allCells.slice(i,i+7));
-
   return(
-    <div className="dot-grid-wrap">
-      <div className="wd-row" style={{marginBottom:3}}>
-        {WD.map((w,i)=><div key={i} className="wd-lbl">{w}</div>)}
-      </div>
-      <div className="dot-grid">
-        {rows.map((row,ri)=>(
-          <div className="dot-row" key={ri}>
-            {row.map((cell,ci)=>{
-              if(cell.type==='empty'||cell.type==='pad') return <div key={ci} className="dot empty"/>;
-              const {d,k,isFuture,isDone,isToday}=cell;
-              let cls="dot";
-              if(isFuture) cls+=" future";
-              else if(isDone) cls+=" done";
-              else cls+=" missed";
-              if(isToday) cls+=" today";
-              return(
-                <div key={ci} className={cls}
-                  style={isDone?{background:h.color,borderColor:h.color}:isToday&&!isDone?{borderColor:h.color,color:h.color,background:`${h.color}18`}:{}}
-                  onClick={()=>clickable&&!isFuture&&onToggle&&onToggle(h.id,k)}
-                >{d}</div>
-              );
-            })}
-          </div>
-        ))}
-      </div>
+    <div>
+      <div className="wd-grid">{WD.map((w,i)=><div key={i} className="wd-lbl">{w}</div>)}</div>
+      <div className="dot-grid">{cells}</div>
     </div>
   );
 }
@@ -203,7 +182,21 @@ function App(){
   function openEdit(h){setForm({...h});setModal("edit");}
   function saveForm(){if(!form.name.trim())return;if(form.id)setHabits(hs=>hs.map(h=>h.id===form.id?{...h,...form}:h));else setHabits(hs=>[...hs,{...form,id:Date.now(),completions:{},notes:{}}]);setModal(null);}
   function installApp(){if(!deferredPrompt)return;deferredPrompt.prompt();deferredPrompt.userChoice.then(()=>{setDeferredPrompt(null);setShowBanner(false);});}
-  function handleBgUpload(e){const file=e.target.files[0];if(!file)return;const r=new FileReader();r.onload=ev=>{setBgImg(ev.target.result);saveBg(ev.target.result);};r.readAsDataURL(file);}
+  
+  // BG: if already set → show options modal, else open file picker
+  function handleBgBtn(){
+    if(bgImg){ if(window.confirm("Remove background image?")){ setBgImg(""); saveBg(""); } }
+    else{ fileRef.current.click(); }
+  }
+  function handleBgUpload(e){
+    const file=e.target.files[0];
+    if(!file)return;
+    // Reset input so same file can be picked again
+    e.target.value="";
+    const r=new FileReader();
+    r.onload=ev=>{setBgImg(ev.target.result);saveBg(ev.target.result);};
+    r.readAsDataURL(file);
+  }
 
   const grouped=CATS.reduce((acc,c)=>{const hs=habits.filter(h=>h.category===c);if(hs.length)acc[c]=hs;return acc;},{});
   const doneToday=habits.filter(h=>h.completions[t]).length;
@@ -282,7 +275,7 @@ function App(){
               })}
             </div>
           ))}
-          {habits.length===0&&<div className="empty"><div className="empty-icon">🌱</div><p>No habits yet.<br/>Tap "+ Add habit" to start.</p></div>}
+          {habits.length===0&&<div className="empty-state"><div className="empty-icon">🌱</div><p>No habits yet.<br/>Tap "+ Add habit" to start.</p></div>}
         </div>
       )}
 
@@ -318,7 +311,7 @@ function App(){
               </div>
             );
           })}
-          {habits.length===0&&<div className="empty"><div className="empty-icon">📊</div><p>No habits to track yet.</p></div>}
+          {habits.length===0&&<div className="empty-state"><div className="empty-icon">📊</div><p>No habits to track yet.</p></div>}
         </div>
       )}
 
@@ -343,8 +336,8 @@ function App(){
       )}
 
       <input ref={fileRef} type="file" accept="image/*" style={{display:"none"}} onChange={handleBgUpload}/>
-      <button className="bg-btn" onClick={()=>bgImg?()=>{setBgImg("");saveBg("");}:fileRef.current.click()}>
-        {bgImg?"🗑 Remove bg":"🖼 Set background"}
+      <button className="bg-btn" onClick={handleBgBtn}>
+        {bgImg?"🖼 Change / Remove bg":"🖼 Set background"}
       </button>
     </div>
   );
